@@ -1,7 +1,9 @@
 import frappe
 from werkzeug.wrappers import Response
-import string
-import random
+from frappe_meta_integration.whatsapp.doctype.whatsapp_communication.whatsapp_communication import (
+	create_incoming_whatsapp_message,
+    update_message_status
+)
 
 @frappe.whitelist(allow_guest=True)
 def handle():
@@ -10,14 +12,21 @@ def handle():
 
     try:
         form_dict = frappe.local.form_dict
-        res = ''.join(random.choices(string.ascii_lowercase + string.digits, k=8))
+        messages = form_dict["entry"][0]["changes"][0]["value"].get("messages", [])
+        statuses = form_dict["entry"][0]["changes"][0]["value"].get("statuses", [])
+
+        for status in statuses:
+            update_message_status(status)
+            
+        for message in messages:
+            create_incoming_whatsapp_message(message)
+
         frappe.get_doc(
-            {"doctype": "Note", "title":res, "content": frappe.as_json(form_dict)}
+            {"doctype": "WhatsApp Webhook Log", "payload": frappe.as_json(form_dict)}
         ).insert(ignore_permissions=True)
         frappe.db.commit()
     except Exception:
         frappe.log_error("WhatsApp Webhook Log Error", frappe.get_traceback())
-        frappe.throw("Something went wrong")
 
 def verify_token_and_fulfill_challenge():
 	meta_challenge = frappe.form_dict.get("hub.challenge")
