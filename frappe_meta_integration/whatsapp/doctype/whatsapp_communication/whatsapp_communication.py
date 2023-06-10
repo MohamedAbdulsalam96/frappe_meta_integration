@@ -260,21 +260,23 @@ def update_message_status(status: Dict):
 	message_id = status.get("id")
 	status = status.get("status")
 
-	frappe.db.set_value(
-		"WhatsApp Communication", {"message_id": message_id}, "status", status.title()
-	)
-	frappe.db.commit()
+	if frappe.db.exists('WhatsApp Communication', {"message_id": message_id}):
+		frappe.db.set_value(
+			"WhatsApp Communication", {"message_id": message_id}, "status", status.title()
+		)
+		frappe.db.commit()
 
 @frappe.whitelist()
 def create_incoming_whatsapp_message(message: Dict):
 	''' Method to create Incoming messages via webhook '''
+	MEDIA_TYPES = ("image", "sticker", "document", "audio", "video")
 	message_type = message.get("type")
 	message_data = frappe._dict(
 		{
 			"doctype": "WhatsApp Communication",
 			"type": "Incoming",
 			"status": "Received",
-			"from": message.get("from"),
+			"from_no": message.get("from"),
 			"message_id": message.get("id"),
 			"message_type": message_type.title(),
 		}
